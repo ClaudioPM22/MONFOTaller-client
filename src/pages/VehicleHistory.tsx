@@ -1,15 +1,48 @@
 // src/pages/VehicleHistory.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useReactToPrint } from 'react-to-print';
 import { Layout } from '../components/Layout';
 import { apiClient } from '../services/axiosClient';
-import { ArrowLeft, Calendar, Gauge, Wrench, Package, User, TrendingUp } from 'lucide-react';
+import { InvoiceReceipt } from '../components/InvoiceReceipt';
+import { ArrowLeft, Calendar, Gauge, Wrench, Package, User, TrendingUp, Receipt } from 'lucide-react';
 
 export const VehicleHistory = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // --- ESTADOS Y LÓGICA PARA IMPRIMIR BOLETAS ANTIGUAS ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [printData, setPrintData] = useState<any>(null);
+  const [isPrintingId, setIsPrintingId] = useState<number | null>(null);
+
+  const invoiceRef = useRef<HTMLDivElement>(null);
+  const executePrint = useReactToPrint({
+    contentRef: invoiceRef,
+    documentTitle: 'Liquidacion_Servicio_Historico',
+  });
+
+  const handlePrintHistoricalInvoice = async (orderId: number) => {
+    setIsPrintingId(orderId);
+    try {
+      // 1. Buscamos los datos completos de esa orden antigua
+      const response = await apiClient.get(`/work-orders/${orderId}/talonario`);
+      setPrintData(response.data);
+      
+      // 2. Le damos a React 200 milisegundos para que renderice el componente oculto con los datos nuevos
+      setTimeout(() => {
+        executePrint();
+        setIsPrintingId(null);
+      }, 200);
+    } catch (error) {
+      console.error('Error al obtener datos para impresión', error);
+      alert('No se pudo cargar la boleta para impresión.');
+      setIsPrintingId(null);
+    }
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -27,18 +60,25 @@ export const VehicleHistory = () => {
     fetchHistory();
   }, [id, navigate]);
 
-  if (isLoading) return <Layout><div className="text-center py-20">Cargando historial clínico...</div></Layout>;
+  if (isLoading) return <Layout><div className="text-center py-20 text-gray-500 font-medium animate-pulse">Cargando historial clínico...</div></Layout>;
   if (!data) return null;
 
   // Calculamos el total de intervenciones realizadas a lo largo del tiempo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const totalInterventions = data.history.reduce((acc: number, order: any) => acc + order.intervenciones.length, 0);
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto relative">
+        
+        {/* COMPONENTE OCULTO PARA IMPRESIÓN */}
+        <div className="hidden">
+           <InvoiceReceipt ref={invoiceRef} data={printData} />
+        </div>
+
         {/* Botón Volver */}
         <button 
-          onClick={() => navigate('/vehicles')}
+          onClick={() => navigate('/vehiculos')}
           className="flex items-center text-gray-500 hover:text-gray-800 transition-colors mb-6 text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4 mr-1" /> Volver al catálogo
@@ -110,7 +150,8 @@ export const VehicleHistory = () => {
               </div>
             ) : (
               <div className="space-y-8 relative before:absolute before:inset-y-0 before:left-4 before:w-0.5 before:bg-gray-200">
-                {data.history.map((order: any, idx: number) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {data.history.map((order: any) => (
                   <div key={order.id} className="relative pl-12">
                     {/* El punto de la línea de tiempo */}
                     <div className="absolute left-0 top-2 w-8 h-8 bg-white border-4 border-monfo-red rounded-full z-10 flex items-center justify-center">
@@ -127,14 +168,26 @@ export const VehicleHistory = () => {
                             {new Date(order.fechaRecepcion).toLocaleDateString('es-CL')}
                           </span>
                         </div>
-                        <div className="flex items-center text-xs text-gray-500">
-                           <Gauge className="w-3 h-3 mr-1" />
-                           {order.kilometraje.toLocaleString()} km
+                        <div className="flex items-center space-x-6">
+                           <div className="flex items-center text-xs text-gray-500">
+                             <Gauge className="w-3 h-3 mr-1" />
+                             {order.kilometraje.toLocaleString()} km
+                           </div>
+                           {/* BOTÓN DE IMPRIMIR BOLETA HISTÓRICA */}
+                           <button
+                             onClick={() => handlePrintHistoricalInvoice(order.id)}
+                             disabled={isPrintingId === order.id}
+                             className="flex items-center text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 border border-blue-200 bg-blue-50 px-3 py-1 rounded"
+                           >
+                             <Receipt className="w-3 h-3 mr-1" />
+                             {isPrintingId === order.id ? 'Cargando...' : 'Ver Boleta'}
+                           </button>
                         </div>
                       </div>
 
                       {/* Detalles de las Intervenciones en esta visita */}
                       <div className="p-6 space-y-6">
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         {order.intervenciones.map((int: any) => (
                           <div key={int.id} className="border-l-2 border-blue-100 pl-4 py-1">
                             <div className="flex justify-between items-start">
@@ -155,6 +208,7 @@ export const VehicleHistory = () => {
                             {/* Repuestos Usados en esta intervención */}
                             {int.repuestosUsados.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-2">
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                 {int.repuestosUsados.map((part: any) => (
                                   <span key={part.id} className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs border border-gray-200">
                                     <Package className="w-3 h-3 mr-1 text-gray-400" />

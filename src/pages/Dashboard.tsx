@@ -1,3 +1,4 @@
+// src/pages/Dashboard.tsx
 import { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
 import { Eye, Plus, Search, Car, Calendar, CheckCircle } from 'lucide-react';
@@ -17,6 +18,10 @@ interface WorkOrder {
 export const Dashboard = () => {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 1. Estado para el buscador
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,12 +50,9 @@ export const Dashboard = () => {
     fetchOrders();
   }, []);
 
-  // --- CÁLCULO DE MÉTRICAS (Basado en tu mockup) ---
-  // Vehículos que no han sido entregados al cliente
+  // --- CÁLCULO DE MÉTRICAS ---
   const vehiculosEnTaller = orders.filter(o => o.estado !== 'ENTREGADO').length; 
-  // Entregas pendientes (Autos que ya están reparados/finalizados pero siguen en el taller)
   const entregasPendientes = orders.filter(o => o.estado === 'FINALIZADO').length;
-  // (Simulado) Ingresos de hoy: En un caso real compararíamos la fechaIngreso con la fecha actual
   const ingresosHoy = orders.filter(o => o.fechaIngreso === new Date().toLocaleDateString('es-CL')).length;
 
   const getStatusBadge = (estado: string) => {
@@ -62,6 +64,12 @@ export const Dashboard = () => {
       default: return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{estado}</span>;
     }
   };
+
+  // 2. Lógica de filtrado
+  const filteredOrders = orders.filter(order => 
+    order.patente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.cliente.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Layout>
@@ -79,9 +87,8 @@ export const Dashboard = () => {
         </button>
       </div>
 
-      {/* FILA DE MÉTRICAS (Inspirado en tu mockup) */}
+      {/* FILA DE MÉTRICAS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Tarjeta 1: Vehículos en el taller */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
           <div className="p-4 bg-blue-50 rounded-lg mr-4">
             <Car className="w-8 h-8 text-blue-600" />
@@ -92,7 +99,6 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Tarjeta 2: Ingresos Hoy */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
           <div className="p-4 bg-monfo-red/10 rounded-lg mr-4">
             <Calendar className="w-8 h-8 text-monfo-red" />
@@ -103,7 +109,6 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Tarjeta 3: Entregas Pendientes */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
           <div className="p-4 bg-green-50 rounded-lg mr-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -123,8 +128,11 @@ export const Dashboard = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
+            {/* 3. Conectamos el input al estado */}
             <input
               type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-monfo-red focus:border-monfo-red outline-none"
               placeholder="Buscar patente o cliente..."
             />
@@ -149,7 +157,8 @@ export const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {orders.map((order) => (
+                {/* 4. Renderizamos filteredOrders en lugar de orders */}
+                {filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded border border-gray-300 uppercase tracking-widest">{order.patente}</span>
@@ -163,7 +172,7 @@ export const Dashboard = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.codigoOperador}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
-                        onClick={() => navigate(`/orden/${order.id}`)} // <-- Agregamos la navegación aquí
+                        onClick={() => navigate(`/orden/${order.id}`)}
                         className="text-gray-500 hover:text-blue-600 transition-colors"
                         title="Ver detalle"
                       >
@@ -176,9 +185,15 @@ export const Dashboard = () => {
             </table>
           )}
           
+          {/* Mensajes de estado vacío */}
           {!isLoading && orders.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">No hay vehículos en el taller actualmente.</p>
+            </div>
+          )}
+          {!isLoading && orders.length > 0 && filteredOrders.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No se encontraron resultados para "{searchTerm}".</p>
             </div>
           )}
         </div>

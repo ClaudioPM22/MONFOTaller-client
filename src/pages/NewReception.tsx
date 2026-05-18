@@ -1,18 +1,21 @@
 // src/pages/NewReception.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { Search, Save, X } from 'lucide-react'; // <-- Agregamos Search
+import { Search, Save, X } from 'lucide-react';
 import { apiClient } from '../services/axiosClient';
 
 export const NewReception = () => {
   const navigate = useNavigate();
-  const userCod = localStorage.getItem('userCod') || 'O-000';
   const fechaActual = new Date().toLocaleDateString('es-CL');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  
+  // --- NUEVO ESTADO PARA USUARIOS ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [operadores, setOperadores] = useState<any[]>([]);
 
   // 1. ESTADOS AGRUPADOS
   const [cliente, setCliente] = useState({
@@ -24,7 +27,12 @@ export const NewReception = () => {
   });
 
   const [recepcion, setRecepcion] = useState({
-    kilometraje: '', nivelBencina: '', observaciones: '', requerimientosCliente: '', fechaEntregaEstimada: ''
+    kilometraje: '', 
+    nivelBencina: '', 
+    observaciones: '', 
+    requerimientosCliente: '', 
+    fechaEntregaEstimada: '',
+    recepcionadoPorId: '' // <-- NUEVO CAMPO
   });
 
   const [checklist, setChecklist] = useState({
@@ -33,6 +41,19 @@ export const NewReception = () => {
     herramientas: false, antena: false, neumaticoRep: false, tapaRuedas: false,
     tapaBencina: false, espejos: false, plumillas: false
   });
+
+  // --- CARGAR USUARIOS AL INICIAR ---
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiClient.get('/users');
+        setOperadores(response.data);
+      } catch (error) {
+        console.error('Error cargando los operadores:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // 2. MANEJADORES DE BÚSQUEDA Y CAMBIOS
   const handleSearch = async () => {
@@ -59,10 +80,10 @@ export const NewReception = () => {
         contacto: data.cliente.telefono,
       });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error.response?.status === 404) {
         alert('Vehículo no encontrado. Por favor, ingrese los datos manualmente para registrarlo.');
-        // Pre-llenamos la patente que el usuario buscó para ahorrarle tiempo
         setVehiculo({ patente: searchQuery.toUpperCase(), marca: '', modelo: '', anio: '', color: '' });
         setCliente({ rut: '', nombre: '', domicilio: '', contacto: '' });
       } else {
@@ -93,6 +114,12 @@ export const NewReception = () => {
   // 3. ENVÍO AL BACKEND
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!recepcion.recepcionadoPorId) {
+      alert('Debe seleccionar al operador que recibe el vehículo.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -108,6 +135,7 @@ export const NewReception = () => {
         observaciones: recepcion.observaciones,
         requerimientosCliente: recepcion.requerimientosCliente,
         fechaEntregaEstimada: recepcion.fechaEntregaEstimada || undefined,
+        recepcionadoPorId: parseInt(recepcion.recepcionadoPorId) // <-- ENVIAMOS EL ID
       };
 
       await apiClient.post('/work-orders/reception', payload);
@@ -115,6 +143,7 @@ export const NewReception = () => {
       alert('¡Recepción ingresada con éxito!');
       navigate('/dashboard');
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Error al guardar:', error);
       const backendError = error.response?.data?.message;
@@ -142,7 +171,7 @@ export const NewReception = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    e.preventDefault(); // Evita que el formulario haga submit
+                    e.preventDefault(); 
                     handleSearch();
                   }
                 }}
@@ -215,6 +244,7 @@ export const NewReception = () => {
             </div>
           </div>
 
+          {/* ZONA DE FECHAS Y OPERADOR */}
           <div className="flex justify-between items-end mb-8 bg-gray-50 p-4 rounded-lg border border-gray-100">
             <div className="space-y-4">
                <div className="flex items-center space-x-3">
@@ -227,8 +257,21 @@ export const NewReception = () => {
                </div>
             </div>
             <div className="text-right">
-              <span className="text-sm text-gray-500 block mb-1">Recibido por (Operador):</span>
-              <span className="font-semibold text-gray-800 border-b border-gray-300 px-4 py-1">{userCod}</span>
+              <label className="text-sm text-gray-500 block mb-1">Recibido por (Operador):</label>
+              <select 
+                required
+                name="recepcionadoPorId"
+                value={recepcion.recepcionadoPorId}
+                onChange={handleRecepcionChange}
+                className="w-48 border border-gray-300 rounded-lg p-2 text-sm focus:border-monfo-red outline-none bg-white"
+              >
+                <option value="" disabled>Seleccionar operador...</option>
+                {operadores.map((op) => (
+                  <option key={op.id} value={op.id}>
+                    {op.nombre} ({op.codigoOperador})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

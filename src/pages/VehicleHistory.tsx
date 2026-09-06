@@ -78,7 +78,7 @@ export const VehicleHistory = () => {
 
         {/* Botón Volver */}
         <button 
-          onClick={() => navigate('/vehiculos')}
+          onClick={() => navigate('/vehicles')}
           className="flex items-center text-gray-500 hover:text-gray-800 transition-colors mb-6 text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4 mr-1" /> Volver al catálogo

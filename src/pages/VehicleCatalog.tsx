@@ -1,7 +1,7 @@
 // src/pages/VehicleCatalog.tsx
 import { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
-import { Search, Plus, Edit, Trash2, History, UserPlus, Car } from 'lucide-react';
+import { Search, Edit, Trash2, History, UserPlus, Car } from 'lucide-react';
 import { apiClient } from '../services/axiosClient';
 import { useNavigate } from 'react-router-dom';
 

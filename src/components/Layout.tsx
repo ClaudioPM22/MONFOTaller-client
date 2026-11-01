@@ -1,5 +1,5 @@
 // src/components/Layout.tsx
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Wrench, Car, Users, Package, Box, LogOut, Shield} from 'lucide-react'; // Agregamos Box para repuestos
 
